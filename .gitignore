@@ -23,3 +23,14 @@ __pycache__/
 .venv/
 .DS_Store
 Thumbs.db
+
+# 核对/输出产物（out/ 之外也可能生成）
+review.json
+review_k*.md
+sentences.json
+named_k*.txt
+spk_k*.txt
+speakers_k*.md
+summary.json
+vp_match_k*.json
+*.npz.bak-*

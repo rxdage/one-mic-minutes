@@ -2,13 +2,13 @@
 
 **一台收音设备开闭门会，会后拿到"每句话是谁说的"逐字稿和纪要。录音全程不出你的机器。**
 
-*Who said what at a closed-door meeting with just one recorder — the attendee list and seat map steer speaker separation, a local voiceprint library auto-names regulars, and you confirm a review table before minutes are written. Chinese ASR (FunASR), fully offline.* （English summary at the bottom.）
+*Who said what at a closed-door meeting with just one recorder — the attendee list sets the speaker count and hotwords, seat distance is a cross-check, a local voiceprint library suggests names for returning regulars (tested on one meeting so far), and you confirm a review table before minutes are written. Chinese ASR (FunASR); audio never leaves your machine and models download on first run.* （English summary at the bottom.）
 
 ---
 
 十二个人围着长桌开会，桌子中间放一支录音笔。会开了一个半小时，谈的都是不能外传的内容，录音不能上传到任何云端纪要服务。会后需要一份纪要，每句话后面写明是谁说的。
 
-这个仓库就是为这种场合写的。它在一场 97 分钟、12 人的真实会议上跑过一遍，最后 10 个人对上了声音；建好声纹库以后，再跑同一批人，基本可以自动填上名字。
+这个仓库就是为这种场合写的。它在一场 97 分钟、12 人的真实会议上跑过一遍，最后分出了 10 个人的声音（名字由人对着核对表填，第一场会没有声纹库）；同一批人再跑时，声纹库会给出候选名字，仍需核对，跨会议还没验证。
 
 ![流程](docs/img/pipeline.svg)
 
@@ -17,8 +17,8 @@
 本地跑 FunASR 或 WhisperX 出会议纪要的开源项目已经不少，录音不上传这一点大家都能做到。这个仓库多做了三件事：
 
 1. **会前的信息直接参与分人。** 名单里有几个人，就分几类；名字自动当热词；比对声纹时只在到场的人里找。座位布置页还会记下每个人离收音器有多远，核对时可以作为一项参考。多数工具只能输出"说话人 1、说话人 2"，名字要事后一个个手填。
-2. **先核对，再写纪要。** 每一类声音都列出声纹分数、座位距离和一句代表发言，你确认之后才写纪要；确认过的声音会回写进声纹库。固定团队开过几次会以后，大部分名字都能自动填上。
-3. **按智能体的工作方式来设计。** 附带一份 `SKILL.md`，把"要名单 → 跑脚本 → 发核对表 → 等你确认 → 写纪要 → 回写声纹库"写成固定步骤，Claude Code 可以直接用。
+2. **先核对，再写纪要。** 每一类声音都列出声纹分数、座位距离和一句代表发言，你确认之后才写纪要；确认过的声音用一条命令回写进声纹库。之后再跑同一批人，声纹库会给出候选名字，仍需核对。
+3. **按智能体的工作方式来设计。** 附带一份 `SKILL.md`，把整个流程写成固定步骤，Claude Code 可以直接用；DSH 版在 `skills/meeting-minutes-dsh/`。
 
 ## 适合谁
 
@@ -26,7 +26,7 @@
 |---|---|
 | 线下会议，**只有一台**录音笔或手机 | 线上会议（会议软件自带的账号区分更准） |
 | 闭门会，录音**不能上传到外部服务** | 需要实时字幕 |
-| **固定团队**：大部分人每次都来，声纹库越攒越准 | 每次都是陌生人的大会 |
+| **固定团队**：大部分人每次都来，声纹库给出候选名字，仍需核对 | 每次都是陌生人的大会 |
 | 会前能给出**参会名单**，最好再给座位 | 多台设备同时录音（目前不支持） |
 | 中文为主 | 以英文为主的会（换模型能做，但没测过） |
 
@@ -58,7 +58,7 @@ python scribe/pipeline.py demo/demo.wav demo/out --attendees examples/demo_atten
 python scribe/pipeline.py 录音.m4a 会议A/out --attendees 座位.json --hotwords 热词.txt
 ```
 
-本机装不了环境的话，可以传到你自己的 Linux 服务器上跑，跑完结果自动取回，服务器上的文件全部删掉：
+本机装不了环境的话，可以传到你自己的 Linux 服务器上跑，跑完结果自动取回。成功时删远端目录；失败时只保证删录音，名单、已生成的转写/emb 和带上去的声纹库可能留在运行目录，排查后请手动删。
 
 ```bash
 SCRIBE_HOST=myserver SCRIBE_PY='~/miniforge3/envs/scribe/bin/python' \
@@ -71,7 +71,7 @@ SCRIBE_HOST=myserver SCRIBE_PY='~/miniforge3/envs/scribe/bin/python' \
 
 ![座位布置页](docs/img/seating.png)
 
-名单里的人数会作为说话人类数，名字会自动加进热词，比对声纹时也只在名单里的人中间找。座位用来算每个人离收音器有多远，在核对时作为一项参考。
+名单里的人数会作为说话人类数，名字会自动加进热词，比对声纹时也只在名单里的人中间找。座位用来算每个人离收音器有多远，只在核对时作为旁证；**它不参与聚类**。
 
 只有名单、没有座位也可以，写一个每行一个名字的 txt 就行。
 
@@ -100,21 +100,23 @@ SCRIBE_HOST=myserver SCRIBE_PY='~/miniforge3/envs/scribe/bin/python' \
 python scribe/voiceprint.py build 会议A/out/emb.npz 会议A/out/labels_k12.npy 说话人对名.json 会议A 声纹库.npz --lib 声纹库.npz
 ```
 
-下次开会带上 `--voiceprints 声纹库.npz`，这些人就能自动认出来。改了名单或声纹库，也不用重跑语音识别：
+第一次建库时去掉 `--lib`；已经有库才加 `--lib 声纹库.npz`。
+
+下次开会带上 `--voiceprints 声纹库.npz`，声纹库会给出候选名字，仍需核对。改了名单或声纹库，也不用重跑语音识别：
 
 ```bash
 python scribe/pipeline.py - 会议A/out --reuse --attendees 座位.json --voiceprints 声纹库.npz
 ```
 
-纪要本身由人来写，或者交给你常用的智能体。`skills/meeting-minutes/SKILL.md` 是一份 Claude Code 技能，按"先核对、再写纪要、最后回写声纹库"的顺序带着智能体走完流程；放进 `~/.claude/skills/` 就能用。
+纪要本身由人来写，或者交给你常用的智能体。`skills/meeting-minutes/SKILL.md` 是 Claude Code 技能；`skills/meeting-minutes-dsh/SKILL.md` 是 DSH 版。**如果让 agent 读转写/写纪要，模型必须在本机或你自己的服务器；云端模型会收到会议内容，违反本地处理前提。** 只用 UI 核对、由人写纪要时，不需要模型。
 
 ## 准确率：目前只有一场会的数据
 
 下面这些数字都来自同一场会（97 分钟、12 人、单只录音笔放在桌子中间），只能作为参考：
 
-- 说话人类数设成名单人数时，最后对上了 10 个人：有 1 个人被拆成两类，另有 1 类是零碎短句。全场说话不到半分钟的人没有找到对应的类。
-- 声纹交叉验证：用前半场建库、测后半场，再反过来做一次，12 次全部认对。本人的分数在 0.89–0.98，其他人最高 0.82；陌生人不超过 0.32。
-- **还没做过跨会议验证。** 换了房间、座位或设备，分数会下降。0.80 这条线只是第一版，用几次之后建议按实际分数再调。
+- 说话人类数设成名单人数时，最后分出了 10 个人的声音（名字由人对着核对表填，第一场会没有声纹库）：有 1 个人被拆成两类，另有 1 类是零碎短句。全场说话不到半分钟的人没有找到对应的类。
+- 声纹交叉验证：用前半场建库、测后半场，再反过来做一次，12 次比对全部认对（不是 12 个人）。本人的分数在 0.89–0.98，其他人最高 0.82；陌生人不超过 0.32。
+- **还没做过跨会议验证。** 换了房间、座位或设备，分数会下降。0.80 这条线只是第一版，用几次之后建议按实际分数再调；0.80 靠 0.05 的领先差兜底，本人不在库里时别人仍可能拿到 ✓，务必核对。
 - 音量和座位距离的对应关系只能作旁证。房间混响和每个人嗓门的大小，都会让距离和音量对不上。
 
 ## 实现
@@ -131,8 +133,10 @@ python scribe/pipeline.py - 会议A/out --reuse --attendees 座位.json --voicep
 ## 隐私
 
 - 录音只在你的机器（或你自己的服务器）上处理，中间产生的音频文件跑完就删。
-- 声纹属于生物识别信息。声纹库只存本地，`.gitignore` 已经排除了它；建库之前，先告诉同事并征得同意。
-- 唯一的联网动作是第一次运行时从 ModelScope 下载模型。
+- 声纹属于生物识别信息。声纹库只存本机或你自己的服务器，不提交 git；建库之前，先告诉同事并征得同意。
+- 输出目录里的 `review.json`、`说话人对名.json` 也可能含会议内容和名字，不要提交 git。
+- 如果让 agent 读转写/写纪要，模型必须在本机或你自己的服务器；云端模型会收到会议内容。
+- 唯一的联网动作是第一次运行时从 ModelScope 下载模型（远程模式另算，见 SECURITY.md）。
 
 ## 路线图
 
@@ -148,10 +152,10 @@ python scribe/pipeline.py - 会议A/out --reuse --attendees 座位.json --voicep
 
 ## English summary
 
-**one-mic-minutes** turns a single-recorder, in-person, closed-door meeting into a speaker-attributed transcript you can review and then write minutes from — entirely on your own machine.
+**one-mic-minutes** turns a single-recorder, in-person, closed-door meeting into a speaker-attributed transcript you can review and then write minutes from. The pipeline runs on your own machine; if an agent reads the transcript, use a local/self-hosted model.
 
-- Give it the attendee list (optionally a seat map drawn in the bundled offline page). The number of attendees sets the cluster count, names become ASR hotwords, and voiceprint matching is restricted to people actually in the room.
+- Give it the attendee list (optionally a seat map drawn in the bundled offline page). The number of attendees sets the cluster count, names become ASR hotwords, and voiceprint matching is restricted to people actually in the room; seat distance is a cross-check, not a clustering input.
 - Pipeline: FunASR SeACo-Paraformer (Chinese ASR with hotwords) → CAM++ sliding-window speaker embeddings → spectral clustering → temporal smoothing → matching against a local voiceprint library.
-- Output: a named transcript plus a review table (voiceprint score, seat distance, loudness, a representative quote per cluster). You confirm names; confirmed clusters are written back to the voiceprint library so the next meeting is mostly auto-named.
-- Tested on one 97-minute, 12-person meeting: 10 people recovered; split-half voiceprint check 12/12. Cross-meeting accuracy is not yet measured.
-- MIT licensed. Audio, transcripts and voiceprints are never uploaded; the only network access is the one-time model download.
+- Output: a named transcript plus a review table (voiceprint score, seat distance, loudness, a representative quote per cluster). You confirm names; confirmed clusters are written back with one command, so the next run gets candidate names, still reviewed.
+- Tested on one 97-minute, 12-person meeting: 10 people's voices recovered (names filled by a human from the review table); split-half voiceprint check 12/12 comparisons. Cross-meeting accuracy is not yet measured.
+- MIT licensed. Audio never leaves your machine; transcripts/voiceprints only go to your own server if you use remote mode. The model must be local/self-hosted if an agent reads the transcript; the only model download is the one-time ModelScope fetch.
