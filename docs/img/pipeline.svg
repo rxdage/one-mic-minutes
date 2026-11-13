@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 480" width="960" height="480" font-family="PingFang SC, Microsoft YaHei, Noto Sans CJK SC, sans-serif">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5b6470"/>
+    </marker>
+    <style>
+      .box{fill:#ffffff;stroke:#c9ced6;stroke-width:1.2}
+      .m{fill:#eef4fb;stroke:#2f5d8a;stroke-width:1.4}
+      .pre{fill:#fbf3ea;stroke:#c0612b;stroke-width:1.4}
+      .out{fill:#eaf6f0;stroke:#1f8a5b;stroke-width:1.4}
+      .hum{fill:#f4f0fa;stroke:#6b4fa0;stroke-width:1.4}
+      .t{font-size:16px;font-weight:700;fill:#1d2329}
+      .s{font-size:12.5px;fill:#4a525c}
+      .lane{font-size:12px;fill:#8a929b;letter-spacing:1px}
+      .ln{stroke:#5b6470;stroke-width:1.5;fill:none;marker-end:url(#a)}
+      .dash{stroke-dasharray:5 4}
+    </style>
+  </defs>
+  <rect x="0" y="0" width="960" height="480" rx="14" fill="#fafbfc"/>
+  <text x="30" y="38" font-size="20" font-weight="700" fill="#1d2329">one-mic-minutes：一台收音设备 → 按人出稿</text>
+
+  <text x="30" y="72" class="lane">机器（本机或你自己的服务器）</text>
+  <!-- row 1 -->
+  <rect class="box" x="30" y="84" width="160" height="78" rx="10"/>
+  <text x="46" y="114" class="t">录音</text>
+  <text x="46" y="136" class="s">一台收音设备</text>
+  <text x="46" y="153" class="s">m4a / mp3 / wav</text>
+
+  <rect class="m" x="218" y="84" width="160" height="78" rx="10"/>
+  <text x="234" y="114" class="t">① 转写</text>
+  <text x="234" y="136" class="s">SeACo-Paraformer</text>
+  <text x="234" y="153" class="s">名单自动当热词</text>
+
+  <rect class="m" x="406" y="84" width="160" height="78" rx="10"/>
+  <text x="422" y="114" class="t">② 滑窗声纹</text>
+  <text x="422" y="136" class="s">CAM++，1.5 s 窗</text>
+  <text x="422" y="153" class="s">0.75 s 步长</text>
+
+  <rect class="m" x="594" y="84" width="160" height="78" rx="10"/>
+  <text x="610" y="114" class="t">③ 聚类 + 平滑</text>
+  <text x="610" y="136" class="s">K = 参会人数</text>
+  <text x="610" y="153" class="s">短于 2 s 的切换不算</text>
+
+  <rect class="m" x="782" y="84" width="150" height="78" rx="10"/>
+  <text x="798" y="114" class="t">④ 对名</text>
+  <text x="798" y="136" class="s">和声纹库比对</text>
+  <text x="798" y="153" class="s">只在名单内找</text>
+
+  <path class="ln" d="M190,123 H216"/>
+  <path class="ln" d="M378,123 H404"/>
+  <path class="ln" d="M566,123 H592"/>
+  <path class="ln" d="M754,123 H780"/>
+
+  <!-- row 2 -->
+  <text x="30" y="214" class="lane">会前</text>
+  <rect class="pre" x="30" y="226" width="348" height="78" rx="10"/>
+  <text x="46" y="256" class="t">座位布置页（不联网）</text>
+  <text x="46" y="278" class="s">名单 + 座位 + 收音器位置</text>
+  <text x="46" y="295" class="s">导出 座位.json</text>
+  <path class="ln dash" d="M298,226 V164"/>
+  <path class="ln dash" d="M360,226 V194 H674 V164"/>
+
+  <rect class="box" x="406" y="226" width="160" height="78" rx="10"/>
+  <text x="422" y="256" class="t">声纹库</text>
+  <text x="422" y="278" class="s">本地 npz，不进 git</text>
+  <text x="422" y="295" class="s">每人可存多条</text>
+  <path class="ln" d="M566,250 C700,250 820,220 840,164"/>
+
+  <rect class="out" x="594" y="226" width="338" height="78" rx="10" transform="translate(0,96)"/>
+  <text x="610" y="352" class="t">输出</text>
+  <text x="610" y="374" class="s">named_k*.txt  带名字的逐字稿</text>
+  <text x="610" y="391" class="s">review_k*.md  对名核对表（声纹分数、座位距离）</text>
+  <path class="ln" d="M900,162 V320"/>
+
+  <!-- row 3 -->
+  <rect class="hum" x="30" y="322" width="536" height="78" rx="10"/>
+  <text x="46" y="352" class="t">核对：✓ 已自动填名，? 看代表发言判断</text>
+  <text x="46" y="374" class="s">确认后写成 说话人对名.json → 回写声纹库，下次自动认出这些人</text>
+  <text x="46" y="391" class="s">没对上的类、名单里没找到声音的人，表里都会列出来</text>
+  <path class="ln" d="M594,361 H568"/>
+  <path class="ln dash" d="M486,322 V306"/>
+
+  <rect x="30" y="424" width="902" height="36" rx="8" fill="#1d2329"/>
+  <text x="46" y="447" font-size="13.5" fill="#ffffff">录音只在本机或你自己的服务器上处理，中间文件跑完即删；声纹库只存本地。没有任何云端调用（模型首次运行时从 ModelScope 下载）。</text>
+</svg>

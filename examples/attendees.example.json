@@ -1,0 +1,21 @@
+{
+ "version": 1,
+ "title": "示例：产品周会",
+ "date": "2026-01-09",
+ "units": "m",
+ "origin": "桌子中心，x 向右，y 向下（俯视图）",
+ "table": { "shape": "rect", "w": 4.2, "h": 1.4 },
+ "people": [
+  { "order": 1, "name": "小林", "alias": "我", "me": true, "dist_to_recorder_m": 2.25 },
+  { "order": 2, "name": "阿杰", "alias": "", "me": false, "dist_to_recorder_m": 1.75 },
+  { "order": 3, "name": "老周", "alias": "主持", "me": false, "dist_to_recorder_m": 1.20 },
+  { "order": 4, "name": "Amy", "alias": "", "me": false, "dist_to_recorder_m": 1.09 },
+  { "order": 5, "name": "王姐", "alias": "", "me": false, "dist_to_recorder_m": 1.48 },
+  { "order": 6, "name": "陈工", "alias": "", "me": false, "dist_to_recorder_m": 2.10 },
+  { "order": 7, "name": "小雨", "alias": "", "me": false, "dist_to_recorder_m": 1.32 },
+  { "order": 8, "name": "老李", "alias": "", "me": false, "dist_to_recorder_m": 1.09 },
+  { "order": 9, "name": "Kevin", "alias": "", "me": false, "dist_to_recorder_m": 1.20 },
+  { "order": 10, "name": "晓东", "alias": "", "me": false, "dist_to_recorder_m": 1.75 }
+ ],
+ "recorder": { "x": 0.0, "y": 0.0, "angle_deg": 0, "angle_known": false }
+}

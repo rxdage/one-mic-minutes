@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>会议座位布置</title>
+<style>
+:root{
+  --bg:#f6f5f2; --panel:#ffffff; --ink:#1d2329; --muted:#6b737c; --line:#d9d6cf;
+  --table:#e9e1d3; --table-edge:#b9a98d; --seat:#2f5d8a; --seat-ink:#fff; --me:#c0612b;
+  --rec:#1f8a5b; --accent:#2f5d8a; --warn:#b3412c; --chip:#f0eee9;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16191c; --panel:#1f2327; --ink:#e7e9eb; --muted:#9aa3ab; --line:#353b41;
+    --table:#3a342b; --table-edge:#7d6c52; --seat:#5b8fc4; --seat-ink:#0f1215; --me:#e08a55;
+    --rec:#3fbf86; --accent:#7fb0e0; --warn:#e07a66; --chip:#2a2f34;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16191c; --panel:#1f2327; --ink:#e7e9eb; --muted:#9aa3ab; --line:#353b41;
+  --table:#3a342b; --table-edge:#7d6c52; --seat:#5b8fc4; --seat-ink:#0f1215; --me:#e08a55;
+  --rec:#3fbf86; --accent:#7fb0e0; --warn:#e07a66; --chip:#2a2f34;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "Microsoft YaHei","PingFang SC",system-ui,sans-serif}
+header{padding:14px 20px 6px;display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+header h1{font-size:18px;margin:0}
+header .sub{color:var(--muted);font-size:13px}
+main{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px;padding:8px 20px 20px}
+@media (max-width:900px){main{grid-template-columns:1fr;padding:8px 16px 16px}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.stage{padding:6px;position:sticky;top:8px;align-self:start}
+svg{width:100%;height:auto;display:block;touch-action:none;user-select:none}
+.side{display:flex;flex-direction:column;gap:12px}
+h2{font-size:14px;margin:0 0 8px}
+label{color:var(--muted);font-size:12px}
+input[type=text],input[type=date],input[type=number],select,textarea{
+  width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 8px;font:inherit}
+textarea{min-height:64px;resize:vertical}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{flex:1}
+.row .fit{flex:0 0 auto}
+button{background:var(--chip);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 10px;font:inherit;cursor:pointer}
+button.primary{background:var(--accent);border-color:var(--accent);color:var(--panel)}
+button:hover{filter:brightness(1.05)}
+.plist{display:flex;flex-direction:column;gap:4px;max-height:260px;overflow:auto;margin-top:6px}
+.pitem{display:grid;grid-template-columns:22px 1fr 1fr 26px 26px;gap:4px;align-items:center}
+.pitem .idx{color:var(--muted);font-size:12px;text-align:right}
+.pitem input{padding:3px 6px}
+.pitem button{padding:2px 0}
+.hint{color:var(--muted);font-size:12px;margin:6px 0 0}
+table.dist{width:100%;border-collapse:collapse;font-size:13px}
+table.dist th,table.dist td{padding:3px 4px;border-bottom:1px solid var(--line);text-align:right}
+table.dist th:first-child,table.dist td:first-child{text-align:left}
+.bar{display:inline-block;height:8px;background:var(--rec);border-radius:4px;vertical-align:middle;opacity:.75}
+.seat circle{fill:var(--seat);stroke:var(--panel);stroke-width:.03}
+.seat.me circle{fill:var(--me)}
+.seat text{fill:var(--seat-ink);font-size:.17px;font-weight:600;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.seat .lbl{fill:var(--ink);font-weight:400;font-size:.15px}
+.seat{cursor:grab}
+.tbl{fill:var(--table);stroke:var(--table-edge);stroke-width:.03}
+.handle{fill:var(--panel);stroke:var(--table-edge);stroke-width:.03;cursor:nwse-resize}
+.rec rect{fill:var(--rec)}
+.rec{cursor:grab}
+.rec .dir{stroke:var(--rec);stroke-width:.025}
+.rec .knob{fill:var(--panel);stroke:var(--rec);stroke-width:.03;cursor:alias}
+.ray{stroke:var(--rec);stroke-width:.012;stroke-dasharray:.04 .04;opacity:.5}
+.grid{stroke:var(--line);stroke-width:.006}
+.toast{position:absolute;right:14px;bottom:12px;background:var(--ink);color:var(--panel);padding:4px 10px;border-radius:6px;font-size:12px;opacity:0;transition:opacity .2s}
+.toast.on{opacity:.9}
+</style>
+</head>
+<body>
+<header>
+  <h1>会议座位布置</h1>
+  <span class="sub">拖人、拖收音器、拖桌角改尺寸；收音器前面的小圆点可以拖着转朝向。改动自动存在这个浏览器里。</span>
+</header>
+<main>
+  <section class="card stage">
+    <svg id="cv" aria-label="会议桌平面图"></svg>
+    <div class="toast" id="toast"></div>
+  </section>
+
+  <aside class="side">
+    <div class="card">
+      <h2>会议</h2>
+      <div class="row">
+        <div><label>标题</label><input id="title" type="text"></div>
+        <div class="fit" style="width:140px"><label>日期</label><input id="date" type="date"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>桌子</h2>
+      <div class="row">
+        <div><label>形状</label>
+          <select id="shape"><option value="rect">长方形</option><option value="oval">椭圆 / 圆</option></select></div>
+        <div><label>长 (m)</label><input id="tw" type="number" step="0.1" min="0.6"></div>
+        <div><label>宽 (m)</label><input id="th" type="number" step="0.1" min="0.6"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>按顺序围一圈</h2>
+      <label>从第一个人开始，按方向列名字（顿号、逗号、空格或换行分隔都行；写成"老周（主持）"会把括号里当别名；"我（小林）"会把小林标成你）</label>
+      <textarea id="order"></textarea>
+      <div class="row" style="margin-top:6px">
+        <div><label>方向（从上往下看）</label>
+          <select id="dir"><option value="ccw">逆时针</option><option value="cw">顺时针</option></select></div>
+        <div><label>第一个人的位置</label><input id="start" type="range" min="0" max="100" step="1"></div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="primary" id="arrange">均匀排一圈</button>
+        <button class="fit" id="shiftL" title="所有人沿桌边后退一位">◀</button>
+        <button class="fit" id="shiftR" title="所有人沿桌边前进一位">▶</button>
+      </div>
+      <p class="hint">会覆盖手动拖过的位置。排完再拖个别人微调。</p>
+    </div>
+
+    <div class="card">
+      <h2>参会人 <span class="sub" id="pcount"></span></h2>
+      <div class="row">
+        <input id="newName" type="text" placeholder="名字">
+        <input id="newAlias" type="text" placeholder="别名（可空）">
+        <button class="fit" id="add">添加</button>
+      </div>
+      <div class="plist" id="plist"></div>
+      <p class="hint">● = 我。新加的人放在桌边空处，拖到对的位置即可。<label><input type="checkbox" id="snap"> 拖动时贴着桌边</label></p>
+    </div>
+
+    <div class="card">
+      <h2>收音器</h2>
+      <div class="row">
+        <select id="frontOf"></select>
+        <button class="fit" id="placeRec">放到他/她正前方桌面中线</button>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <div><label>朝向（°，0 = 朝上）</label><input id="recAng" type="number" step="5"></div>
+        <div><label>&nbsp;</label><label><input type="checkbox" id="recKnown"> 朝向是确定的</label></div>
+      </div>
+      <table class="dist" style="margin-top:8px">
+        <thead><tr><th>人</th><th>距离</th><th>方位</th><th title="按距离反比估算，相对最近的人">直达声</th></tr></thead>
+        <tbody id="dist"></tbody>
+      </table>
+      <p class="hint">直达声按 1/距离 估算，只当排序参考；房间混响会拉平差别。方位以收音器正前方为 0°，只在朝向确定时有意义。</p>
+    </div>
+
+    <div class="card">
+      <h2>导出 / 导入</h2>
+      <div class="row">
+        <button class="primary" id="dl">下载 JSON</button>
+        <button id="copy">复制 JSON</button>
+        <button id="imp">导入…</button>
+        <input type="file" id="file" accept=".json,application/json" hidden>
+      </div>
+      <div class="row" style="margin-top:6px">
+        <button id="reset">恢复成示例</button>
+      </div>
+      <p class="hint">把下载的 JSON 和录音放在一起，跑脚本时作为参会名单传进去：<code>--attendees 座位.json</code>。</p>
+    </div>
+  </aside>
+</main>
+
+<script>
+(() => {
+const KEY = 'one-mic-minutes-seating-v1';
+const G = 0.38;            // 座位离桌边的距离 (m)
+const R = 0.2;             // 座位圆半径 (m)
+const MARGIN = 1.0;
+
+const EXAMPLE = {
+  version: 1, title: '示例：产品周会', date: '2026-01-09',
+  table: { shape: 'rect', w: 4.2, h: 1.4 },
+  order: '我（小林）、阿杰、老周（主持）、Amy、王姐、陈工、小雨、老李、Kevin、晓东',
+  dir: 'ccw', start: 0, frontOf: '老李', recKnown: false,
+};
+
+let S;  // state
+const $ = id => document.getElementById(id);
+const svg = $('cv');
+const NS = 'http://www.w3.org/2000/svg';
+
+// ---------- 存取 ----------
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+function load(){ try{ const t = localStorage.getItem(KEY); return t ? JSON.parse(t) : null; }catch(e){ return null; } }
+let uid = 1; const newId = () => 'p' + (Date.now().toString(36)) + (uid++);
+
+function parseOrder(text){
+  return text.split(/[、,，;；\n\r\t ]+/).map(s => s.trim()).filter(Boolean).map(tok => {
+    const m = tok.match(/^(.+?)[（(](.+?)[)）]$/);
+    let name = m ? m[1] : tok, alias = m ? m[2] : '';
+    const me = name === '我';
+    if (me && alias) { name = alias; alias = '我'; }
+    return { name, alias, me };
+  });
+}
+
+function fromExample(){
+  const st = { version:1, title:EXAMPLE.title, date:EXAMPLE.date, table:{...EXAMPLE.table},
+    order:EXAMPLE.order, dir:EXAMPLE.dir, start:EXAMPLE.start, snap:true,
+    people:[], recorder:{x:0,y:0,angle:0,known:EXAMPLE.recKnown} };
+  // 去掉"一圈"末尾重复的自己
+  const ps = parseOrder(EXAMPLE.order);
+  st.people = ps.map(p => ({ id:newId(), ...p, x:0, y:0 }));
+  S = st; arrange();
+  const t = S.people.find(p => p.name === EXAMPLE.frontOf);
+  if (t) placeRecorderFront(t, true);
+  return S;
+}
+
+// ---------- 桌边几何 ----------
+function perimeterSamples(n = 720){
+  const { shape, w, h } = S.table, pts = [];
+  if (shape === 'rect'){
+    const segs = [ // 从左端中点开始，俯视逆时针（屏幕 y 向下 = 先往下走）
+      [[-w/2,0],[-w/2,h/2],[-1,0]], [[-w/2,h/2],[w/2,h/2],[0,1]],
+      [[w/2,h/2],[w/2,-h/2],[1,0]], [[w/2,-h/2],[-w/2,-h/2],[0,-1]], [[-w/2,-h/2],[-w/2,0],[-1,0]] ];
+    const P = 2*(w+h);
+    for (let i=0;i<n;i++){
+      let s = i/n*P;
+      for (let k = 0; k < segs.length; k++){
+        const [a,b,nm] = segs[k], L = Math.hypot(b[0]-a[0], b[1]-a[1]);
+        if (s <= L || k === segs.length-1){ const f = L ? Math.min(1, s/L) : 0;
+          pts.push({x:a[0]+(b[0]-a[0])*f, y:a[1]+(b[1]-a[1])*f, nx:nm[0], ny:nm[1]}); break; }
+        s -= L;
+      }
+    }
+  } else {
+    const a = w/2, b = h/2, raw = [];
+    const M = 2000; let acc = 0, prev = null;
+    for (let i=0;i<=M;i++){
+      // 左端起，俯视逆时针 = 屏幕上先往下走：tt 从 π 走到 3π，y 取 -sin
+      const tt = Math.PI + i/M*2*Math.PI;
+      const p = {x:a*Math.cos(tt), y:-b*Math.sin(tt)};
+      if (prev) acc += Math.hypot(p.x-prev.x, p.y-prev.y);
+      raw.push({...p, s:acc, t:tt}); prev = p;
+    }
+    const P = acc; let j = 0;
+    for (let i=0;i<n;i++){
+      const s = i/n*P; while (j < raw.length-1 && raw[j+1].s < s) j++;
+      const q = raw[j], tt = q.t;
+      let nx = Math.cos(tt)/a, ny = -Math.sin(tt)/b; const L = Math.hypot(nx,ny); nx/=L; ny/=L;
+      pts.push({x:q.x, y:q.y, nx, ny});
+    }
+  }
+  return pts;
+}
+
+function seatAt(frac){
+  const pts = perimeterSamples();
+  const k = ((Math.round(frac*pts.length) % pts.length) + pts.length) % pts.length;
+  const p = pts[k];
+  return { x:p.x + p.nx*G, y:p.y + p.ny*G };
+}
+
+function arrange(){
+  const n = S.people.length; if (!n) return;
+  const st = (+S.start || 0)/100, sgn = S.dir === 'cw' ? -1 : 1;
+  S.people.forEach((p,i) => { const q = seatAt(st + sgn*i/n); p.x = q.x; p.y = q.y; });
+}
+
+function nearestSeat(x, y){
+  let best = null, bd = 1e9;
+  for (const p of perimeterSamples(480)){
+    const sx = p.x + p.nx*G, sy = p.y + p.ny*G, d = (sx-x)**2 + (sy-y)**2;
+    if (d < bd){ bd = d; best = {x:sx, y:sy}; }
+  }
+  return best;
+}
+
+function placeRecorderFront(person, faceThem){
+  const { shape, w, h } = S.table;
+  let x, y;
+  const long = w >= h;
+  const halfL = (long ? w : h)/2;
+  if (long){
+    x = Math.max(-w/2 + 0.15, Math.min(w/2 - 0.15, person.x)); y = 0;
+    if (Math.abs(person.x) > w/2 - 0.05) x = Math.sign(person.x)*(w/2 - Math.min(0.5, w/4));
+  } else {
+    y = Math.max(-h/2 + 0.15, Math.min(h/2 - 0.15, person.y)); x = 0;
+    if (Math.abs(person.y) > h/2 - 0.05) y = Math.sign(person.y)*(h/2 - Math.min(0.5, h/4));
+  }
+  S.recorder.x = x; S.recorder.y = y;
+  if (faceThem) S.recorder.angle = Math.round(bearing(x, y, person.x, person.y));
+}
+function bearing(x0,y0,x1,y1){ // 0 = 屏幕上方，顺时针为正
+  return (Math.atan2(x1-x0, -(y1-y0))*180/Math.PI + 360) % 360;
+}
+
+// ---------- 绘制 ----------
+function el(tag, attrs, parent){ const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+
+let vb;
+function draw(){
+  const { shape, w, h } = S.table;
+  const ex = w/2 + G + R + MARGIN*0.8, ey = h/2 + G + R + MARGIN*0.8;
+  vb = { x:-ex, y:-ey, w:2*ex, h:2*ey };
+  svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+  svg.innerHTML = '';
+  // 1 m 网格
+  const gg = el('g', {}, svg);
+  for (let gx = Math.ceil(vb.x); gx <= vb.x+vb.w; gx++) el('line',{x1:gx,y1:vb.y,x2:gx,y2:vb.y+vb.h,class:'grid'},gg);
+  for (let gy = Math.ceil(vb.y); gy <= vb.y+vb.h; gy++) el('line',{x1:vb.x,y1:gy,x2:vb.x+vb.w,y2:gy,class:'grid'},gg);
+  // 桌
+  if (shape === 'rect') el('rect',{x:-w/2,y:-h/2,width:w,height:h,rx:.08,class:'tbl'},svg);
+  else el('ellipse',{cx:0,cy:0,rx:w/2,ry:h/2,class:'tbl'},svg);
+  const hd = el('rect',{x:w/2-.07,y:h/2-.07,width:.14,height:.14,rx:.03,class:'handle'},svg);
+  hd.addEventListener('pointerdown', ev => startDrag(ev, 'table'));
+  // 收音器到人的虚线
+  const rc = S.recorder;
+  for (const p of S.people) el('line',{x1:rc.x,y1:rc.y,x2:p.x,y2:p.y,class:'ray'},svg);
+  // 人
+  S.people.forEach((p, i) => {
+    const g = el('g',{class:'seat'+(p.me?' me':''),transform:`translate(${p.x} ${p.y})`},svg);
+    el('circle',{r:R},g);
+    const t = el('text',{},g); t.textContent = shortName(p.name);
+    const lb = el('text',{class:'lbl',y:R+.14},g);
+    lb.textContent = p.alias ? `${p.name}（${p.alias}）` : p.name;
+    const ttl = el('title',{},g); ttl.textContent = `${i+1}. ${p.name}${p.alias?'（'+p.alias+'）':''}`;
+    g.addEventListener('pointerdown', ev => startDrag(ev, 'person', p));
+  });
+  // 收音器
+  const rg = el('g',{class:'rec',transform:`translate(${rc.x} ${rc.y}) rotate(${rc.angle})`},svg);
+  el('line',{x1:0,y1:0,x2:0,y2:-.34,class:'dir'},rg);
+  el('rect',{x:-.07,y:-.12,width:.14,height:.24,rx:.03},rg);
+  const kn = el('circle',{cx:0,cy:-.36,r:.05,class:'knob'},rg);
+  rg.addEventListener('pointerdown', ev => { if (ev.target === kn) startDrag(ev,'rotate'); else startDrag(ev,'rec'); });
+}
+function shortName(n){ if (/^[ -~]+$/.test(n)) return n.charAt(0).toUpperCase(); return n.length <= 2 ? n : n.slice(0,2); }
+
+// ---------- 拖动 ----------
+let drag = null;
+function svgPt(ev){ const r = svg.getBoundingClientRect();
+  return { x: vb.x + (ev.clientX - r.left)/r.width*vb.w, y: vb.y + (ev.clientY - r.top)/r.height*vb.h }; }
+function startDrag(ev, kind, obj){ ev.preventDefault(); ev.stopPropagation();
+  drag = { kind, obj }; svg.setPointerCapture(ev.pointerId); }
+svg.addEventListener('pointermove', ev => {
+  if (!drag) return; const p = svgPt(ev);
+  if (drag.kind === 'person'){
+    if (S.snap){ const q = nearestSeat(p.x, p.y); drag.obj.x = q.x; drag.obj.y = q.y; }
+    else { drag.obj.x = p.x; drag.obj.y = p.y; }
+  } else if (drag.kind === 'rec'){ S.recorder.x = p.x; S.recorder.y = p.y; }
+  else if (drag.kind === 'rotate'){ S.recorder.angle = Math.round(bearing(S.recorder.x,S.recorder.y,p.x,p.y)); }
+  else if (drag.kind === 'table'){
+    const nw = Math.max(.6, Math.round(Math.abs(p.x)*2*10)/10), nh = Math.max(.6, Math.round(Math.abs(p.y)*2*10)/10);
+    scalePeople(nw/S.table.w, nh/S.table.h); S.table.w = nw; S.table.h = nh;
+  }
+  refresh(false);
+});
+svg.addEventListener('pointerup', () => { if (drag){ drag = null; refresh(true); } });
+svg.addEventListener('pointercancel', () => { drag = null; });
+function scalePeople(fx, fy){ // 桌子变大时，人跟着桌边走
+  const { w, h } = S.table;
+  for (const p of S.people){
+    const ox = Math.abs(p.x) > w/2 ? Math.sign(p.x)*(Math.abs(p.x) - w/2) : 0;
+    const oy = Math.abs(p.y) > h/2 ? Math.sign(p.y)*(Math.abs(p.y) - h/2) : 0;
+    p.x = (p.x - ox)*fx + ox; p.y = (p.y - oy)*fy + oy;
+  }
+}
+
+// ---------- 面板 ----------
+function renderList(){
+  const box = $('plist'); box.innerHTML = '';
+  $('pcount').textContent = `（${S.people.length} 人）`;
+  S.people.forEach((p, i) => {
+    const row = document.createElement('div'); row.className = 'pitem';
+    row.innerHTML = `<span class="idx">${i+1}</span>`;
+    const n = document.createElement('input'); n.type='text'; n.value=p.name; n.placeholder='名字';
+    n.oninput = () => { p.name = n.value; refresh(true, false); };
+    const a = document.createElement('input'); a.type='text'; a.value=p.alias||''; a.placeholder='别名';
+    a.oninput = () => { p.alias = a.value; refresh(true, false); };
+    const me = document.createElement('button'); me.textContent = p.me ? '●' : '○'; me.title = '标成"我"';
+    me.onclick = () => { S.people.forEach(q => q.me = (q === p) ? !p.me : false); refresh(true); };
+    const del = document.createElement('button'); del.textContent = '×'; del.title = '删除';
+    del.onclick = () => { S.people.splice(i,1); refresh(true); };
+    row.append(n, a, me, del); box.appendChild(row);
+  });
+  const sel = $('frontOf'), cur = sel.value; sel.innerHTML = '';
+  S.people.forEach(p => { const o = document.createElement('option'); o.value = p.id; o.textContent = p.name; sel.appendChild(o); });
+  if ([...sel.options].some(o => o.value === cur)) sel.value = cur;
+}
+
+function renderDist(){
+  const rc = S.recorder, rows = S.people.map(p => {
+    const d = Math.hypot(p.x-rc.x, p.y-rc.y);
+    let rel = (bearing(rc.x, rc.y, p.x, p.y) - rc.angle + 540) % 360 - 180;
+    return { p, d, rel };
+  }).sort((a,b) => a.d - b.d);
+  const dmin = rows.length ? rows[0].d : 1;
+  $('dist').innerHTML = rows.map(r => {
+    const db = 20*Math.log10(dmin / r.d);
+    const dir = !S.recorder.known ? '—' : (Math.abs(r.rel) < 5 ? '正前' : Math.abs(r.rel) > 175 ? '正后'
+      : (r.rel > 0 ? '右 ' : '左 ') + Math.round(Math.abs(r.rel)) + '°');
+    const wbar = Math.max(4, 60 + db*4);
+    return `<tr><td>${esc(r.p.name)}</td><td>${r.d.toFixed(2)} m</td><td>${dir}</td>
+      <td><span class="bar" style="width:${wbar}px"></span> ${db.toFixed(1)} dB</td></tr>`;
+  }).join('');
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function syncInputs(){
+  $('title').value = S.title || ''; $('date').value = S.date || '';
+  $('shape').value = S.table.shape; $('tw').value = S.table.w; $('th').value = S.table.h;
+  $('order').value = S.order || ''; $('dir').value = S.dir || 'ccw'; $('start').value = S.start || 0;
+  $('snap').checked = !!S.snap; $('recAng').value = S.recorder.angle; $('recKnown').checked = !!S.recorder.known;
+}
+
+function refresh(persist = true, list = true){
+  draw(); renderDist(); if (list) renderList();
+  $('recAng').value = S.recorder.angle;
+  if (persist) save();
+}
+
+function toast(msg){ const t = $('toast'); t.textContent = msg; t.classList.add('on'); setTimeout(() => t.classList.remove('on'), 1400); }
+
+function exportObj(){
+  const rc = S.recorder;
+  return {
+    version: 1, title: S.title, date: S.date, units: 'm', origin: '桌子中心，x 向右，y 向下（俯视图）',
+    table: S.table,
+    people: S.people.map((p, i) => ({
+      order: i+1, name: p.name, alias: p.alias || '', me: !!p.me,
+      x: +p.x.toFixed(2), y: +p.y.toFixed(2),
+      dist_to_recorder_m: +Math.hypot(p.x-rc.x, p.y-rc.y).toFixed(2),
+      bearing_from_recorder_deg: rc.known ? Math.round((bearing(rc.x,rc.y,p.x,p.y) - rc.angle + 540) % 360 - 180) : null,
+    })),
+    recorder: { x: +rc.x.toFixed(2), y: +rc.y.toFixed(2), angle_deg: rc.angle, angle_known: !!rc.known },
+    _editor: { order: S.order, dir: S.dir, start: S.start },
+  };
+}
+function importObj(o){
+  S = { version:1, title:o.title||'', date:o.date||'', table:{shape:o.table?.shape||'rect', w:+o.table?.w||4, h:+o.table?.h||1.4},
+    order:o._editor?.order||'', dir:o._editor?.dir||'ccw', start:o._editor?.start||0, snap:true,
+    people:(o.people||[]).map(p => ({id:newId(), name:p.name||'', alias:p.alias||'', me:!!p.me, x:+p.x||0, y:+p.y||0})),
+    recorder:{x:+o.recorder?.x||0, y:+o.recorder?.y||0, angle:+o.recorder?.angle_deg||0, known:!!o.recorder?.angle_known} };
+}
+
+// ---------- 事件 ----------
+$('title').oninput = e => { S.title = e.target.value; save(); };
+$('date').oninput = e => { S.date = e.target.value; save(); };
+$('shape').onchange = e => { S.table.shape = e.target.value; refresh(); };
+$('tw').onchange = e => { const v = Math.max(.6, +e.target.value || S.table.w); scalePeople(v/S.table.w, 1); S.table.w = v; refresh(); };
+$('th').onchange = e => { const v = Math.max(.6, +e.target.value || S.table.h); scalePeople(1, v/S.table.h); S.table.h = v; refresh(); };
+$('order').oninput = e => { S.order = e.target.value; save(); };
+$('dir').onchange = e => { S.dir = e.target.value; save(); };
+$('start').oninput = e => { S.start = +e.target.value; if (S._arranged) { arrange(); refresh(true, false); } else save(); };
+$('arrange').onclick = () => {
+  let ps = parseOrder(S.order || '');
+  if (ps.length > 1 && ps[0].name === ps[ps.length-1].name) ps.pop();   // "……我"首尾相同 = 一圈
+  if (!ps.length) { toast('先在上面写名字'); return; }
+  const old = new Map(S.people.map(p => [p.name, p]));
+  S.people = ps.map(p => ({ id: old.get(p.name)?.id || newId(), ...p, x:0, y:0 }));
+  arrange(); S._arranged = true; refresh(); toast(`已排 ${ps.length} 人`);
+};
+function shift(k){ const n = S.people.length; if (!n) return; S.start = ((+S.start + k*100/n) % 100 + 100) % 100;
+  $('start').value = S.start; arrange(); S._arranged = true; refresh(); }
+$('shiftL').onclick = () => shift(-1);
+$('shiftR').onclick = () => shift(1);
+$('add').onclick = () => {
+  const name = $('newName').value.trim(); if (!name) return;
+  const q = seatAt(Math.random()); S.people.push({ id:newId(), name, alias:$('newAlias').value.trim(), me:false, x:q.x, y:q.y });
+  $('newName').value = ''; $('newAlias').value = ''; refresh();
+};
+$('newName').onkeydown = e => { if (e.key === 'Enter') $('add').click(); };
+$('snap').onchange = e => { S.snap = e.target.checked; save(); };
+$('placeRec').onclick = () => { const p = S.people.find(q => q.id === $('frontOf').value); if (p){ placeRecorderFront(p, !S.recorder.known); refresh(); } };
+$('recAng').onchange = e => { S.recorder.angle = ((+e.target.value % 360) + 360) % 360; refresh(); };
+$('recKnown').onchange = e => { S.recorder.known = e.target.checked; refresh(); };
+$('dl').onclick = () => {
+  const blob = new Blob([JSON.stringify(exportObj(), null, 1)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `座位_${S.date || 'meeting'}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+$('copy').onclick = async () => {
+  const txt = JSON.stringify(exportObj(), null, 1);
+  try { await navigator.clipboard.writeText(txt); toast('已复制'); }
+  catch(e){ const t = document.createElement('textarea'); t.value = txt; document.body.appendChild(t); t.select();
+    try { document.execCommand('copy'); toast('已复制'); } catch(_){ toast('复制失败，请用下载'); } t.remove(); }
+};
+$('imp').onclick = () => $('file').click();
+$('file').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try { importObj(JSON.parse(await f.text())); syncInputs(); refresh(); toast('已导入'); }
+  catch(err){ toast('JSON 读不了'); }
+  e.target.value = '';
+};
+$('reset').onclick = () => { fromExample(); syncInputs(); refresh(); toast('已恢复示例'); };
+
+// ---------- 启动 ----------
+S = load();
+if (!S || !S.people) fromExample();
+syncInputs(); refresh();
+})();
+</script>
+</body>
+</html>

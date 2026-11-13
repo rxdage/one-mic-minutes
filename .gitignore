@@ -1,0 +1,25 @@
+# 录音、中间结果、声纹库：一律不进仓库
+*.wav
+*.m4a
+*.mp3
+*.flac
+*.aac
+*.ogg
+*.opus
+*.amr
+*.npz
+*.npy
+demo/
+out/
+_asr/
+runs/
+private/
+voiceprints*
+说话人对名*.json
+座位*.json
+
+__pycache__/
+*.pyc
+.venv/
+.DS_Store
+Thumbs.db

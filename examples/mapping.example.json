@@ -1,0 +1,8 @@
+{
+ "_说明": "核对完对名表后写这个文件，再用 scribe/voiceprint.py build 回写声纹库。键是 review_k*.md 里的类号；null 表示零碎杂类，不入库；confirmed=false 表示名字是推断的。",
+ "S0": { "name": "老周", "confirmed": true },
+ "S1": { "name": "老周", "confirmed": true },
+ "S2": null,
+ "S3": { "name": "Amy", "confirmed": true },
+ "S4": { "name": "陈工", "confirmed": false }
+}

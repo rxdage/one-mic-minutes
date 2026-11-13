@@ -1,0 +1,9 @@
+# 先装 torch（CPU 版即可，见 README），再 pip install -r requirements.txt
+# ffmpeg 不是 pip 包：conda install -c conda-forge ffmpeg，或自行安装后放进 PATH
+funasr>=1.2
+modelscope
+torch
+torchaudio
+numpy
+scikit-learn
+soundfile
