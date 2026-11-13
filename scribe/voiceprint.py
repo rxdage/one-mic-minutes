@@ -43,7 +43,7 @@ def load(path):
 
 
 def empty():
-    return {"names": np.array([], dtype="U32"), "protos": np.zeros((0, 192)), "nwin": np.zeros(0, int),
+    return {"names": np.array([], dtype="U64"), "protos": np.zeros((0, 192)), "nwin": np.zeros(0, int),
             "source": np.array([], dtype="U64"), "confirmed": np.zeros(0, bool)}
 
 
@@ -54,7 +54,7 @@ def save(lib, path):
 def add(lib, name, proto, nwin, source, confirmed):
     """加一个原型；同一人原型超过上限时，把最相近的两个按窗数加权合并。"""
     lib = {k: v.copy() for k, v in lib.items()}
-    lib["names"] = np.append(lib["names"].astype("U32"), name)
+    lib["names"] = np.append(lib["names"].astype("U64"), name)
     lib["protos"] = np.vstack([lib["protos"], _norm(proto)[None]])
     lib["nwin"] = np.append(lib["nwin"], nwin)
     lib["source"] = np.append(lib["source"].astype("U64"), source)

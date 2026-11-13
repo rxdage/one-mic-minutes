@@ -324,11 +324,11 @@ def postprocess(a, sents, E, W, rms, ild, dur, people, log):
         lab = labels_for(A, cen, K)
         np.save(os.path.join(a.outdir, f"labels_k{K}.npy"), lab)
         T = turns(sents, lab, cen)
-        vp = None
+        vp = {}
         if lib is not None and len(lib["names"]):
             vp = vl.match(vl.cluster_centroids(E, lab), lib)
-            json.dump({f"S{k}": v for k, v in vp.items()},
-                      open(os.path.join(a.outdir, f"vp_match_k{K}.json"), "w", encoding="utf-8"), ensure_ascii=False)
+        json.dump({f"S{k}": v for k, v in (vp or {}).items()},
+                  open(os.path.join(a.outdir, f"vp_match_k{K}.json"), "w", encoding="utf-8"), ensure_ascii=False)
         names = name_clusters(vp, people)
         open(os.path.join(a.outdir, f"spk_k{K}.txt"), "w", encoding="utf-8").write(
             "\n".join(f"[{ts(t0)}] S{l}: {tx}" for l, t0, tx in T))
